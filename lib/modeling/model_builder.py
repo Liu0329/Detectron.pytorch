@@ -170,6 +170,11 @@ class Generalized_RCNN(nn.Module):
             return_dict['losses']['loss_bbox'] = loss_bbox
             return_dict['metrics']['accuracy_cls'] = accuracy_cls
 
+            # extend scaler loss to have one dimension, to be compatible with pytorch 0.4
+            for loss_name, loss in return_dict['losses'].items():
+                return_dict['losses'][loss_name] = loss.unsqueeze(0)
+            return_dict['metrics']['accuracy_cls'] = return_dict['metrics']['accuracy_cls'].unsqueeze(0)
+
             if cfg.MODEL.MASK_ON:
                 if getattr(self.Mask_Head, 'SHARE_RES5', False):
                     mask_feat = self.Mask_Head(res5_feat, rpn_ret,
@@ -180,7 +185,7 @@ class Generalized_RCNN(nn.Module):
                 # return_dict['mask_pred'] = mask_pred
                 # mask loss
                 loss_mask = mask_rcnn_heads.mask_rcnn_losses(mask_pred, rpn_ret['masks_int32'])
-                return_dict['losses']['loss_mask'] = loss_mask
+                return_dict['losses']['loss_mask'] = loss_mask.unsqueeze(0) # not tested
 
             if cfg.MODEL.KEYPOINTS_ON:
                 if getattr(self.Keypoint_Head, 'SHARE_RES5', False):
@@ -200,7 +205,7 @@ class Generalized_RCNN(nn.Module):
                     loss_keypoints = keypoint_rcnn_heads.keypoint_losses(
                         kps_pred, rpn_ret['keypoint_locations_int32'], rpn_ret['keypoint_weights'],
                         rpn_ret['keypoint_loss_normalizer'])
-                return_dict['losses']['loss_kps'] = loss_keypoints
+                return_dict['losses']['loss_kps'] = loss_keypoints.unsqueeze(0) # not tested
         else:
             # Testing
             return_dict['rois'] = rpn_ret['rois']
