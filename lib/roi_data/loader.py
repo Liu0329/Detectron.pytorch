@@ -177,6 +177,44 @@ class MinibatchSampler(sampler.Sampler):
     def __len__(self):
         return self.num_data
 
+class MinibatchSamplerWrapper(object):
+    r""" much like "BatchSampler" in pytorch 0.4,
+    the key change is 'batch.append(index_tuple)', thus batch can accept tuple.
+    See https://github.com/roytseng-tw/Detectron.pytorch/issues/40
+    and https://github.com/roytseng-tw/Detectron.pytorch/issues/18
+
+    Wraps another sampler to yield a mini-batch of indices.
+    Args:
+        sampler (Sampler): Base sampler.
+        batch_size (int): Size of mini-batch.
+        drop_last (bool): If ``True``, the sampler will drop the last batch if
+            its size would be less than ``batch_size``
+    Example:
+        >>> list(BatchSampler(range(10), batch_size=3, drop_last=False))
+        [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]]
+        >>> list(BatchSampler(range(10), batch_size=3, drop_last=True))
+        [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    """
+    def __init__(self, sampler, batch_size, drop_last):
+        self.sampler = sampler
+        self.batch_size = batch_size
+        self.drop_last = drop_last
+
+    def __iter__(self):
+        batch = []
+        for index_tuple in self.sampler:
+            batch.append(index_tuple)
+            if len(batch) == self.batch_size:
+                yield batch
+                batch = []
+        if len(batch) > 0 and not self.drop_last:
+            yield batch
+
+    def __len__(self):
+        if self.drop_last:
+            return len(self.sampler) // self.batch_size
+        else:
+            return (len(self.sampler) + self.batch_size - 1) // self.batch_size
 
 def collate_minibatch(list_of_blobs):
     """Stack samples seperately and return a list of minibatches
